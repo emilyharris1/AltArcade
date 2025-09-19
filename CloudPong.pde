@@ -1,9 +1,11 @@
 import processing.serial.*;
 import processing.sound.*;
+
 Serial myPort;
 String serialData = "";
 int leftVal = 0;
 int rightVal = 0;
+
 float ballX, ballY;
 float ballSpeedX = 3;
 float ballSpeedY = 5;
@@ -24,17 +26,27 @@ float blueBallX = 500;
 float blueBallY = 350;
 float speedBallSize = 35;
 
-boolean slowEffectActive = false; // powerups
+boolean slowEffectActive = false; 
 boolean speedEffectActive = false;
 int slowEffectTimer = 0;
 int speedEffectTimer = 0;
 float originalSpeedX = 3;
 float originalSpeedY = 5;
 
+float targetPlayerX;
+float easing = 0.15;
+
 SoundFile bounceSound;
 SoundFile scoreSound;
 SoundFile serveSound;
 SoundFile loseSound;
+
+SoundFile moveLeftSound;
+SoundFile moveRightSound;
+
+int moveSoundDuration = 200;
+int leftSoundTimer = 0;
+int rightSoundTimer = 0;
 
 void setup(){
   size(800, 700);
@@ -42,11 +54,16 @@ void setup(){
   myPort.bufferUntil('\n');
   
   bounceSound = new SoundFile(this, "bounce.wav"); 
-  scoreSound = new SoundFile(this, "score.wav");   
-  serveSound = new SoundFile(this, "serve.wav");  
+  scoreSound  = new SoundFile(this, "score.wav");   
+  serveSound  = new SoundFile(this, "serve.wav");  
   loseSound   = new SoundFile(this, "lose.mp3");
+
+  moveLeftSound  = new SoundFile(this, "moveLeft.mp3");
+  moveRightSound = new SoundFile(this, "moveRight.mp3");
+
   resetGame();
 }
+
 void draw(){
   background(0);
   
@@ -93,7 +110,7 @@ void draw(){
       slowEffectTimer = millis();
       originalSpeedX = ballSpeedX;
       originalSpeedY = ballSpeedY;
-      ballSpeedX *= 0.4; // Slow down
+      ballSpeedX *= 0.4; 
       ballSpeedY *= 0.4;
     }
     
@@ -103,7 +120,7 @@ void draw(){
       speedEffectTimer = millis();
       originalSpeedX = ballSpeedX;
       originalSpeedY = ballSpeedY;
-      ballSpeedX *= 2.0; // Speed up
+      ballSpeedX *= 2.0; 
       ballSpeedY *= 2.0;
     }
     
@@ -119,11 +136,12 @@ void draw(){
       ballSpeedY = (ballSpeedY > 0 ? 1 : -1) * abs(originalSpeedY);
     }
     
-    // bounce off wall + direction
+    // bounce off wall
     if (ballX < 10 || ballX > width-10){
       ballSpeedX *= -1;
       bounceSound.play();
-    } // bounce off paddle + direction
+    } 
+    // bounce off player paddle
     if (ballY + ballSize/2 > playerY && 
         ballX > playerX && ballX < playerX + paddleW){
       ballSpeedY *= -1;
@@ -133,6 +151,7 @@ void draw(){
       ballSpeedX *= 1.05;
       ballSpeedY *= 1.05;
     }
+    // bounce off opponents paddle
     if (ballY - ballSize/2 < aiY + paddleH && 
         ballX > aiX && ballX < aiX + paddleW){
       ballSpeedY *= -1;
@@ -156,10 +175,31 @@ void draw(){
     int threshold = 10; 
     
     if (rightVal - leftVal > threshold){
-  playerX += playerSpeed;
-} else if (leftVal - rightVal > threshold){
-  playerX -= playerSpeed;
-}
+      targetPlayerX += playerSpeed;
+      if (!moveRightSound.isPlaying()) {
+        moveRightSound.cue(0);
+        moveRightSound.play();
+        rightSoundTimer = millis();
+      }
+    } else if (leftVal - rightVal > threshold){
+      targetPlayerX -= playerSpeed;
+      if (!moveLeftSound.isPlaying()) {
+        moveLeftSound.cue(0);
+        moveLeftSound.play();
+        leftSoundTimer = millis();
+      }
+    }
+    playerX += (targetPlayerX - playerX) * easing;
+    targetPlayerX = constrain(targetPlayerX, 0, width - paddleW);
+    playerX = constrain(playerX, 0, width - paddleW);
+
+    if (moveLeftSound.isPlaying() && millis() - leftSoundTimer > moveSoundDuration) {
+      moveLeftSound.stop();
+    }
+    if (moveRightSound.isPlaying() && millis() - rightSoundTimer > moveSoundDuration) {
+      moveRightSound.stop();
+    }
+
     playerX = constrain(playerX, 0, width - paddleW);
     
     float error = map(noise(frameCount * 0.01), 0, 1, -40, 40);
@@ -172,6 +212,7 @@ void draw(){
     ellipse(ballX, ballY, ballSize, ballSize);
   }
 }
+
 void serialEvent(Serial p){
   serialData = p.readStringUntil('\n');
   if (serialData != null) {
@@ -183,6 +224,7 @@ void serialEvent(Serial p){
     }
   }
 }
+
 void resetBall(){
   ballX = width/2;
   ballY = height/2;
@@ -191,8 +233,10 @@ void resetBall(){
   slowEffectActive = false;
   speedEffectActive = false;
 }
+
 void resetGame(){
   playerX = width/2 - paddleW/2;
+  targetPlayerX = playerX;
   playerY = height - 40;
   aiX = width/2 - paddleW/2;
   aiY = 30;
@@ -200,8 +244,9 @@ void resetGame(){
   aiScore = 0;
   resetBall();
 }
+
 void keyPressed(){
-  if (key == ' ') { // space
+  if (key == ' ') { 
     gameStarted = true;
     paused = false;
     serveSound.play();

@@ -1,6 +1,6 @@
 # Shaving Cream Pong Controller
 
-A custom physical game controller that uses light sensors and tactile materials to control a Pong-style game. Instead of buttons or joysticks, players interact with shaving cream (and other experimental materials) to move the paddle left and right, creating a playful and unconventional input experience.
+A custom physical game controller that uses light sensors and tactile materials to control a Pong-style game. Instead of buttons or joysticks, players interact with shaving cream to move the paddle left and right, creating a playful and unconventional input experience.
 
 ---
 
